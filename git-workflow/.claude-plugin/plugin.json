@@ -1,0 +1,11 @@
+{
+  "name": "git-workflow",
+  "version": "1.0.0",
+  "description": "Git workflow tools: commit assistant with gitmoji, PR creation, release automation, worktree management",
+  "author": {
+    "name": "bigdra50"
+  },
+  "repository": "https://github.com/bigdra50/claude-plugins",
+  "license": "MIT",
+  "keywords": ["git", "gitmoji", "workflow", "commit"]
+}

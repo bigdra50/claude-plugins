@@ -1,0 +1,11 @@
+{
+  "name": "session",
+  "version": "1.0.0",
+  "description": "Session management tools: task orchestration, state dump for recovery, and branch catchup",
+  "author": {
+    "name": "bigdra50"
+  },
+  "repository": "https://github.com/bigdra50/claude-plugins",
+  "license": "MIT",
+  "keywords": ["session", "orchestrator", "dump", "catchup", "workflow"]
+}

@@ -1,0 +1,24 @@
+{
+  "name": "bigdra50",
+  "owner": {
+    "name": "bigdra50"
+  },
+  "description": "bigdra50's Claude Code plugins",
+  "plugins": [
+    {
+      "name": "unity-dev",
+      "description": "Unity development tools: C# code review agents, UPM release automation, and Unity Editor operations via MCP",
+      "source": "./unity-dev"
+    },
+    {
+      "name": "git-workflow",
+      "description": "Git workflow tools: commit assistant with gitmoji, PR creation, release automation, worktree management",
+      "source": "./git-workflow"
+    },
+    {
+      "name": "session",
+      "description": "Session management tools: task orchestration, state dump for recovery, and branch catchup",
+      "source": "./session"
+    }
+  ]
+}

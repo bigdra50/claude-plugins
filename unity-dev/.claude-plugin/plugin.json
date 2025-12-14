@@ -1,0 +1,11 @@
+{
+  "name": "unity-dev",
+  "version": "1.1.0",
+  "description": "Unity development tools: C# code review agents, UPM release automation, and Unity Editor operations via MCP",
+  "author": {
+    "name": "bigdra50"
+  },
+  "repository": "https://github.com/bigdra50/claude-plugins",
+  "license": "MIT",
+  "keywords": ["unity", "csharp", "code-review", "upm", "editor", "mcp"]
+}
