@@ -37,6 +37,8 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp --port 640
 | `find` | Find GameObject | `<name>` |
 | `tests` | Run tests | `<mode>` (edit/play) |
 | `scene` | Scene operations | `<action>` (see below) |
+| `gameobject` | GameObject operations | `<action>` (see below) |
+| `material` | Material operations | `<action>` (see below) |
 
 ### Global Options
 
@@ -62,6 +64,44 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp --port 640
 | `load` | Load scene | `--name`, `--path`, or `--build-index` |
 | `save` | Save current scene | `--name`, `--path` (optional) |
 | `create` | Create new scene | `--name` (required), `--path` (optional) |
+
+### GameObject Actions
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `find` | Find GameObject by name | `<name>` argument |
+| `create` | Create new GameObject | `--name` (required) |
+| `delete` | Delete GameObject | `--name` (required) |
+| `modify` | Modify GameObject transform | `--name` (required) |
+
+**GameObject Options:**
+- `--name`: Object name
+- `--primitive`: Cube, Sphere, Capsule, Cylinder, Plane, Quad
+- `--position`: x,y,z format (e.g., `0,1,0`)
+- `--rotation`: x,y,z format
+- `--scale`: x,y,z format
+- `--parent`: Parent object name
+
+### Material Actions
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `create` | Create material | `--path` (required) |
+| `info` | Get material info | `--path` (required) |
+| `set-color` | Set material color | `--path`, `--color` |
+| `set-property` | Set shader property | `--path`, `--property`, `--value` |
+| `assign` | Assign to renderer | `--path`, `--target` |
+| `set-renderer-color` | Set renderer color | `--target`, `--color` |
+
+**Material Options:**
+- `--path`: Material asset path (e.g., `Assets/Materials/New.mat`)
+- `--shader`: Shader name (default: Standard)
+- `--color`: r,g,b,a format (e.g., `1,0,0,1`)
+- `--property`: Shader property name (e.g., `_BaseColor`)
+- `--value`: Property value
+- `--target`: Target GameObject name
+- `--slot`: Material slot index
+- `--mode`: shared, instance, or property_block
 
 Refer to `references/mcp-commands.md` for detailed documentation.
 
@@ -202,9 +242,34 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene save
 uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene create --name NewScene --path Assets/Scenes
 ```
 
-**Find GameObject:**
+**GameObject Operations:**
 ```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp find "PlayerController"
+# Find GameObject
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject find "Main Camera"
+
+# Create primitive GameObject
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject create --name "MyCube" --primitive Cube --position 0,1,0
+
+# Modify transform
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject modify --name "MyCube" --position 5,0,0 --rotation 0,45,0
+
+# Delete GameObject
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject delete --name "MyCube"
+```
+
+**Material Operations:**
+```bash
+# Get material info
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material info --path Assets/Materials/Default.mat
+
+# Create new material
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material create --path Assets/Materials/New.mat --shader Standard
+
+# Set material color
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material set-color --path Assets/Materials/New.mat --color 1,0,0,1
+
+# Assign material to object
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material assign --path Assets/Materials/New.mat --target "MyCube"
 ```
 
 **Play Mode Control:**
