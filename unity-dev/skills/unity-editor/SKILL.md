@@ -36,6 +36,7 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp --port 640
 | `stop` | Exit Play Mode | None |
 | `find` | Find GameObject | `<name>` |
 | `tests` | Run tests | `<mode>` (edit/play) |
+| `scene` | Scene operations | `<action>` (see below) |
 
 ### Global Options
 
@@ -47,6 +48,20 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp --port 640
 | `--count` | Number of logs to retrieve | 20 |
 | `--timeout` | Max wait for compilation (verify only) | 60s |
 | `--retry` | Max connection retry attempts (verify only) | 3 |
+| `--name` | Scene name (scene create/load) | None |
+| `--path` | Scene path (scene create/load/save) | None |
+| `--build-index` | Build index (scene load) | None |
+
+### Scene Actions
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `active` | Get active scene info | None |
+| `hierarchy` | Get scene hierarchy tree | None |
+| `build-settings` | Get scenes in build settings | None |
+| `load` | Load scene | `--name`, `--path`, or `--build-index` |
+| `save` | Save current scene | `--name`, `--path` (optional) |
+| `create` | Create new scene | `--name` (required), `--path` (optional) |
 
 Refer to `references/mcp-commands.md` for detailed documentation.
 
@@ -159,6 +174,33 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp refresh
 ### 5. Scene & GameObject Operations
 
 **Trigger:** User requests scene management or object manipulation
+
+**Scene Operations:**
+```bash
+# Get active scene info
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene active
+
+# Get scene hierarchy
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene hierarchy
+
+# Get build settings (scenes in build)
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene build-settings
+
+# Load scene by name
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --name MainScene
+
+# Load scene by path
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --path Assets/Scenes/Level1.unity
+
+# Load scene by build index
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --build-index 0
+
+# Save current scene
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene save
+
+# Create new scene
+uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene create --name NewScene --path Assets/Scenes
+```
 
 **Find GameObject:**
 ```bash
