@@ -1,17 +1,13 @@
 # Unity MCP Client CLI Reference
 
-## Overview
-
-`unity-mcp-client` is a CLI tool for Unity Editor operations via socket connection. Install and run via `uvx` for always-latest version.
-
-## Installation & Usage
+## Quick Setup
 
 ```bash
-# Run any command (auto-installs on first use)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp <command>
+# Define alias for brevity
+alias umcp='uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp'
 ```
 
-**Port Auto-Detection:** On macOS, the port is automatically detected from Unity EditorPrefs. Manual `--port` is only needed for non-standard setups.
+**Port Auto-Detection:** On macOS, port is auto-detected from Unity EditorPrefs.
 
 ---
 
@@ -19,46 +15,58 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp <command>
 
 ### verify
 
-**Full validation workflow: refresh → clear → compile wait → console check**
+Full validation: refresh → clear → compile wait → console check
 
 ```bash
-# Default (60s timeout, 3 retries, error+warning)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify
-
-# Extended timeout for large projects
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --timeout 120
-
-# More retry attempts
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --retry 5
-
-# Include all log types
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --types error warning log
+umcp verify                              # Default (5s timeout, 3 retries)
+umcp verify --timeout 120                # Extended timeout
+umcp verify --connection-timeout 60      # Extended connection timeout
+umcp verify --retry 5                    # More retry attempts
+umcp verify --types error warning log    # Include all log types
 ```
 
-**Options:**
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--timeout` | Max wait for compilation (seconds) | 60 |
+| `--timeout` | Max wait for compilation (seconds) | 5 |
+| `--connection-timeout` | TCP connection timeout (seconds) | 30 |
 | `--retry` | Max connection retry attempts | 3 |
 | `--types` | Log types to check | error warning |
 
-**Workflow Steps:**
-1. Trigger asset refresh
-2. Clear console
-3. Poll `isCompiling` until false (or timeout)
-4. Display console logs
+---
+
+### config
+
+Show or initialize configuration.
+
+```bash
+umcp config                        # Show current configuration
+umcp config init                   # Generate .unity-mcp.toml
+umcp config init --output my.toml  # Custom output path
+umcp config init --force           # Overwrite existing file
+```
+
+**Configuration file format (.unity-mcp.toml):**
+```toml
+port = 6401
+host = "localhost"
+timeout = 5.0
+connection_timeout = 30.0
+retry = 3
+log_types = ["error", "warning"]
+log_count = 20
+```
 
 ---
 
 ### refresh
 
-Trigger Unity asset database refresh.
+Trigger Unity asset database refresh (async).
 
 ```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp refresh
+umcp refresh
 ```
 
-**Note:** This is async. Use `verify` for complete workflow with wait.
+Use `verify` for complete workflow with wait.
 
 ---
 
@@ -67,7 +75,7 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp refresh
 Get current Unity Editor state.
 
 ```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp state
+umcp state
 ```
 
 **Response:**
@@ -92,17 +100,11 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp state
 Get Unity console logs.
 
 ```bash
-# Default (error + warning, 20 entries)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console
-
-# Errors only
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error
-
-# All types with limit
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error warning log --count 50
+umcp console                                    # Errors and warnings (default)
+umcp console --types error                      # Errors only
+umcp console --types error warning log --count 50  # All types with limit
 ```
 
-**Options:**
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--types` | Log types (space-separated) | error warning |
@@ -115,38 +117,18 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --
 Clear Unity console.
 
 ```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp clear
+umcp clear
 ```
 
 ---
 
-### play
+### play / stop
 
-Enter Unity Play Mode.
-
-```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp play
-```
-
----
-
-### stop
-
-Exit Unity Play Mode.
+Enter or exit Unity Play Mode.
 
 ```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp stop
-```
-
----
-
-### find
-
-Find GameObject in hierarchy.
-
-```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp find "PlayerController"
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp find "Canvas/UI/Button"
+umcp play    # Enter Play Mode
+umcp stop    # Exit Play Mode
 ```
 
 ---
@@ -156,11 +138,103 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp find "Canv
 Run Unity tests.
 
 ```bash
-# Edit Mode tests
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests edit
+umcp tests EditMode    # Run EditMode tests
+umcp tests PlayMode    # Run PlayMode tests
+```
 
-# Play Mode tests
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests play
+---
+
+### scene
+
+Scene operations.
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `active` | Get active scene info | None |
+| `hierarchy` | Get scene hierarchy tree | None |
+| `build-settings` | Get scenes in build | None |
+| `load` | Load scene | `--name`, `--path`, or `--build-index` |
+| `save` | Save current scene | `--path` (optional) |
+| `create` | Create new scene | `--name` (required), `--path` (optional) |
+
+```bash
+umcp scene active
+umcp scene hierarchy
+umcp scene build-settings
+umcp scene load --name MainScene
+umcp scene load --path Assets/Scenes/Level1.unity
+umcp scene load --build-index 0
+umcp scene save
+umcp scene create --name NewScene --path Assets/Scenes
+```
+
+---
+
+### gameobject
+
+GameObject operations.
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `find` | Find GameObject by name | `<name>` argument |
+| `create` | Create new GameObject | `--name` (required) |
+| `delete` | Delete GameObject | `--name` (required) |
+| `modify` | Modify transform | `--name` (required) |
+
+**Options:**
+| Option | Description |
+|--------|-------------|
+| `--name` | Object name |
+| `--primitive` | Cube, Sphere, Capsule, Cylinder, Plane, Quad |
+| `--position` | x,y,z format (e.g., `0,1,0`) |
+| `--rotation` | x,y,z format |
+| `--scale` | x,y,z format |
+| `--parent` | Parent object name |
+| `--search-method` | Search method (default: by_name) |
+
+```bash
+umcp gameobject find "Main Camera"
+umcp gameobject create --name "MyCube" --primitive Cube --position 0,1,0
+umcp gameobject create --name "Player" --parent "GameManager" --position 1,2,3
+umcp gameobject modify --name "MyCube" --position 5,0,0 --rotation 0,45,0 --scale 2,2,2
+umcp gameobject delete --name "MyCube"
+```
+
+---
+
+### material
+
+Material operations.
+
+| Action | Purpose | Required Options |
+|--------|---------|------------------|
+| `create` | Create material | `--path` |
+| `info` | Get material info | `--path` |
+| `set-color` | Set material color | `--path`, `--color` |
+| `set-property` | Set shader property | `--path`, `--property`, `--value` |
+| `assign` | Assign to renderer | `--path`, `--target` |
+| `set-renderer-color` | Set renderer color | `--target`, `--color` |
+
+**Options:**
+| Option | Description | Default |
+|--------|-------------|---------|
+| `--path` | Material asset path | - |
+| `--shader` | Shader name | Standard |
+| `--color` | r,g,b,a format (e.g., `1,0,0,1`) | - |
+| `--property` | Shader property name | _BaseColor |
+| `--value` | Property value | - |
+| `--target` | Target GameObject name | - |
+| `--slot` | Material slot index | 0 |
+| `--mode` | shared, instance, or property_block | - |
+
+```bash
+umcp material info --path Assets/Materials/Default.mat
+umcp material create --path Assets/Materials/New.mat --shader Standard
+umcp material set-color --path Assets/Materials/New.mat --color 1,0,0,1
+umcp material set-property --path Assets/Materials/Mat.mat --property _Metallic --value 0.5
+umcp material assign --path Assets/Materials/New.mat --target "MyCube"
+umcp material assign --path Assets/Materials/New.mat --target "MyCube" --mode instance
+umcp material set-renderer-color --target "MyCube" --color 0,1,0,1
 ```
 
 ---
@@ -174,47 +248,19 @@ uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests play
 
 ---
 
-## Common Workflows
-
-### Post-Edit Verification
-
-```bash
-# Single command does everything
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify
-```
-
-### Quick Error Check
-
-```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error --count 10
-```
-
-### Test Execution
-
-```bash
-# Verify first, then test
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify && \
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests edit
-```
-
----
-
 ## Troubleshooting
 
 ### Connection Refused
-
 1. Verify Unity Editor is running
 2. Check MCP for Unity plugin (Tools → MCP for Unity)
-3. Try with explicit port: `--port 6400`
+3. Try explicit port: `--port 6400`
 
 ### Timeout During Verify
-
-1. Increase timeout: `--timeout 120`
+1. Increase timeout: `--timeout 120 --connection-timeout 60`
 2. Check Unity for blocking dialogs
 3. Manual refresh in Unity (Cmd+R)
 
 ### Port Auto-Detection Failed (macOS)
-
 1. Specify manually: `--port 6400`
 2. Check Unity EditorPrefs:
    ```bash

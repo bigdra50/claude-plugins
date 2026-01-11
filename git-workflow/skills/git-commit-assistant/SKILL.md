@@ -1,6 +1,20 @@
 ---
 name: git-commit-assistant
 description: Git commit creation assistant with gitmoji prefixes and Japanese messages. Supports two modes staged-only (commits only staged changes) and smart-commit (analyzes all changes and creates multiple commits with appropriate granularity using git add -p). Use when user wants to create git commits with proper gitmoji categorization.
+allowed-tools:
+  - Bash(git:*)
+context: fork
+agent: general-purpose
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "git diff --cached --name-only | xargs -I {} sh -c 'grep -l -E \"(password|secret|api_key|token|private_key)\\s*[:=]\" \"{}\" 2>/dev/null' && echo \"WARNING: Possible secrets in staged files\" >&2 || true"
+          once: true
+  Stop:
+    - type: command
+      command: "git log -1 --oneline 2>/dev/null || true"
 ---
 
 # Git Commit Assistant

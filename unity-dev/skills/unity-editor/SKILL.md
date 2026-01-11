@@ -1,384 +1,179 @@
 ---
 name: unity-editor
-description: Comprehensive Unity Editor operations using unity-mcp-client CLI via uvx. Covers daily workflows (refresh, console, build verification), asset management, scene/object manipulation, and debugging. This skill should be used when users request Unity Editor operations, error analysis, log review, asset refresh, test execution, or after making script/asset modifications.
+description: Unity Editor operations via unity-mcp-client CLI. Handles build verification, console logs, tests, scene/object manipulation. Use after script edits or for debugging.
+allowed-tools:
+  - Bash(uvx:*)
+  - Read
+context: fork
+agent: general-purpose
+hooks:
+  PreToolUse:
+    - matcher: "Bash"
+      hooks:
+        - type: command
+          command: "uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp state 2>/dev/null | grep -q 'success' || echo 'WARNING: Unity Editor connection check - ensure Editor is running' >&2"
+          once: true
+  Stop:
+    - type: command
+      command: "uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error --count 5 2>/dev/null || true"
 ---
 
 # Unity Editor Operations
 
-## Overview
-
-Streamline Unity Editor operations through `unity-mcp-client` CLI via uvx. Handle daily development workflows, asset management, debugging, and scene operations with automated verification cycles.
-
-## CLI Setup
-
-All Unity Editor operations use `unity-mcp-client` via `uvx`:
+## Quick Reference
 
 ```bash
-# Base command (port auto-detected on macOS)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp <command>
-
-# With explicit port
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp --port 6400 <command>
+# Define alias for brevity (all examples below use this)
+alias umcp='uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp'
 ```
 
-**Note:** On macOS, port is auto-detected from Unity EditorPrefs. Manual `--port` is only needed for non-standard setups.
+## Commands Overview
 
-### Available Commands
+| Command | Purpose |
+|---------|---------|
+| `verify` | Full validation (refresh→clear→wait→console) |
+| `refresh` | Refresh asset database |
+| `state` | Get editor state (isCompiling, isPlaying) |
+| `console` | Get console logs |
+| `clear` | Clear console |
+| `play` / `stop` | Enter/Exit Play Mode |
+| `tests <mode>` | Run tests (EditMode/PlayMode) |
+| `config` | Show/initialize configuration |
+| `scene <action>` | Scene operations |
+| `gameobject <action>` | GameObject operations |
+| `material <action>` | Material operations |
 
-| Command | Purpose | Options |
-|---------|---------|---------|
-| `verify` | Full validation (refresh→clear→wait→console) | `--timeout`, `--retry`, `--types` |
-| `refresh` | Refresh asset database | None |
-| `state` | Get editor state (isCompiling, isPlaying) | None |
-| `console` | Get console logs | `--types`, `--count` |
-| `clear` | Clear console | None |
-| `play` | Enter Play Mode | None |
-| `stop` | Exit Play Mode | None |
-| `find` | Find GameObject | `<name>` |
-| `tests` | Run tests | `<mode>` (edit/play) |
-| `scene` | Scene operations | `<action>` (see below) |
-| `gameobject` | GameObject operations | `<action>` (see below) |
-| `material` | Material operations | `<action>` (see below) |
+See [references/mcp-commands.md](references/mcp-commands.md) for detailed options.
 
-### Global Options
+## Global Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
 | `--port` | MCP server port | Auto-detect (macOS) |
 | `--host` | MCP server host | localhost |
+| `--timeout` | Max wait for compilation (verify) | 5s |
+| `--connection-timeout` | TCP connection timeout (verify) | 30s |
+| `--retry` | Max connection retry attempts (verify) | 3 |
 | `--types` | Log types (error, warning, log) | error warning |
 | `--count` | Number of logs to retrieve | 20 |
-| `--timeout` | Max wait for compilation (verify only) | 60s |
-| `--retry` | Max connection retry attempts (verify only) | 3 |
-| `--name` | Scene name (scene create/load) | None |
-| `--path` | Scene path (scene create/load/save) | None |
-| `--build-index` | Build index (scene load) | None |
-
-### Scene Actions
-
-| Action | Purpose | Required Options |
-|--------|---------|------------------|
-| `active` | Get active scene info | None |
-| `hierarchy` | Get scene hierarchy tree | None |
-| `build-settings` | Get scenes in build settings | None |
-| `load` | Load scene | `--name`, `--path`, or `--build-index` |
-| `save` | Save current scene | `--name`, `--path` (optional) |
-| `create` | Create new scene | `--name` (required), `--path` (optional) |
-
-### GameObject Actions
-
-| Action | Purpose | Required Options |
-|--------|---------|------------------|
-| `find` | Find GameObject by name | `<name>` argument |
-| `create` | Create new GameObject | `--name` (required) |
-| `delete` | Delete GameObject | `--name` (required) |
-| `modify` | Modify GameObject transform | `--name` (required) |
-
-**GameObject Options:**
-- `--name`: Object name
-- `--primitive`: Cube, Sphere, Capsule, Cylinder, Plane, Quad
-- `--position`: x,y,z format (e.g., `0,1,0`)
-- `--rotation`: x,y,z format
-- `--scale`: x,y,z format
-- `--parent`: Parent object name
-
-### Material Actions
-
-| Action | Purpose | Required Options |
-|--------|---------|------------------|
-| `create` | Create material | `--path` (required) |
-| `info` | Get material info | `--path` (required) |
-| `set-color` | Set material color | `--path`, `--color` |
-| `set-property` | Set shader property | `--path`, `--property`, `--value` |
-| `assign` | Assign to renderer | `--path`, `--target` |
-| `set-renderer-color` | Set renderer color | `--target`, `--color` |
-
-**Material Options:**
-- `--path`: Material asset path (e.g., `Assets/Materials/New.mat`)
-- `--shader`: Shader name (default: Standard)
-- `--color`: r,g,b,a format (e.g., `1,0,0,1`)
-- `--property`: Shader property name (e.g., `_BaseColor`)
-- `--value`: Property value
-- `--target`: Target GameObject name
-- `--slot`: Material slot index
-- `--mode`: shared, instance, or property_block
-
-Refer to `references/mcp-commands.md` for detailed documentation.
 
 ## Core Workflows
 
 ### 1. Build Verification (Post-Edit)
 
-**Trigger:** After editing C# scripts, shaders, or .asmdef files
+After editing C# scripts, shaders, or .asmdef files:
+
+```bash
+umcp verify                        # Standard verification
+umcp verify --timeout 120          # Extended timeout for large projects
+umcp verify --types error warning log  # Include all log types
+```
 
 **Workflow:**
 ```
-Edit Script → Refresh Assets → Wait for Compile → Check Console → Fix if Errors
-     ↑                                                              |
-     └──────────────────── Repeat ←────────────────────────────────┘
+Edit Script → verify → Fix if Errors → Repeat
 ```
-
-**Single Command:**
-```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify
-```
-
-This command executes:
-1. Asset refresh
-2. Console clear
-3. Compilation wait (polling `isCompiling`)
-4. Console log check
-
-**With Custom Options:**
-```bash
-# Extended timeout for large projects
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --timeout 120
-
-# Include all log types
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --types error warning log
-
-# More retry attempts for unstable connections
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify --retry 5
-```
-
-**Critical:** Never skip verification after script changes. Always verify before reporting task completion.
 
 ### 2. Console Log Analysis
 
-**Trigger:** User requests "check logs", "analyze errors", or debugging assistance
-
-**Log Types:**
-- `error` - Compilation and runtime errors (critical)
-- `warning` - Deprecation, performance warnings (medium)
-- `log` - Debug.Log output (informational)
-
-**Commands:**
 ```bash
-# Get errors only
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error
-
-# Get errors and warnings (default)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console
-
-# Get all logs with limit
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp console --types error warning log --count 50
+umcp console --types error         # Errors only
+umcp console                       # Errors and warnings (default)
+umcp console --types error warning log --count 50  # All logs
 ```
-
-**Workflow:**
-1. Retrieve console logs with appropriate filter
-2. Parse error codes and locations (e.g., `CS0246 at Scripts/Player.cs:15`)
-3. Reference `references/error-patterns.md` for known patterns
-4. Report findings with prioritization
-5. Suggest fixes with file paths and line numbers
 
 ### 3. Test Execution
 
-**Trigger:** User requests test run, or before commit/PR
-
-**Prerequisites:**
-- Successful compilation (run `verify` first)
-
-**Commands:**
 ```bash
-# Run Edit Mode tests
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests edit
-
-# Run Play Mode tests
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp tests play
+umcp tests EditMode                # Run EditMode tests
+umcp tests PlayMode                # Run PlayMode tests
 ```
 
-**Workflow:**
-1. Run `verify` first to ensure clean compilation
-2. Execute tests
-3. Analyze results
-4. Report failures with stack traces
+### 4. Configuration
 
-### 4. Asset Management
-
-**Trigger:** User mentions prefabs, ScriptableObjects, or asset operations
-
-**Commands:**
 ```bash
-# Full verification (recommended)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp verify
-
-# Refresh only (without waiting)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp refresh
+umcp config                        # Show current configuration
+umcp config init                   # Generate .unity-mcp.toml
+umcp config init --output my.toml  # Custom output path
+umcp config init --force           # Overwrite existing
 ```
 
-**Best Practices:**
-- Use `verify` after external file changes
-- Validate prefab connections before build
-- Check for null references in ScriptableObjects
+### 5. Scene Operations
 
-### 5. Scene & GameObject Operations
-
-**Trigger:** User requests scene management or object manipulation
-
-**Scene Operations:**
 ```bash
-# Get active scene info
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene active
-
-# Get scene hierarchy
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene hierarchy
-
-# Get build settings (scenes in build)
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene build-settings
-
-# Load scene by name
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --name MainScene
-
-# Load scene by path
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --path Assets/Scenes/Level1.unity
-
-# Load scene by build index
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene load --build-index 0
-
-# Save current scene
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene save
-
-# Create new scene
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp scene create --name NewScene --path Assets/Scenes
+umcp scene active                  # Get active scene info
+umcp scene hierarchy               # Get scene hierarchy
+umcp scene build-settings          # Get scenes in build
+umcp scene load --name MainScene   # Load by name
+umcp scene load --path Assets/Scenes/Level1.unity
+umcp scene load --build-index 0    # Load by build index
+umcp scene save                    # Save current scene
+umcp scene create --name NewScene --path Assets/Scenes
 ```
 
-**GameObject Operations:**
+### 6. GameObject Operations
+
 ```bash
-# Find GameObject
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject find "Main Camera"
-
-# Create primitive GameObject
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject create --name "MyCube" --primitive Cube --position 0,1,0
-
-# Modify transform
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject modify --name "MyCube" --position 5,0,0 --rotation 0,45,0
-
-# Delete GameObject
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp gameobject delete --name "MyCube"
+umcp gameobject find "Main Camera"
+umcp gameobject create --name "MyCube" --primitive Cube --position 0,1,0
+umcp gameobject modify --name "MyCube" --position 5,0,0 --rotation 0,45,0
+umcp gameobject delete --name "MyCube"
 ```
 
-**Material Operations:**
+**Options:** `--name`, `--primitive`, `--position`, `--rotation`, `--scale`, `--parent`, `--search-method`
+
+### 7. Material Operations
+
 ```bash
-# Get material info
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material info --path Assets/Materials/Default.mat
-
-# Create new material
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material create --path Assets/Materials/New.mat --shader Standard
-
-# Set material color
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material set-color --path Assets/Materials/New.mat --color 1,0,0,1
-
-# Assign material to object
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp material assign --path Assets/Materials/New.mat --target "MyCube"
+umcp material info --path Assets/Materials/Default.mat
+umcp material create --path Assets/Materials/New.mat --shader Standard
+umcp material set-color --path Assets/Materials/New.mat --color 1,0,0,1
+umcp material assign --path Assets/Materials/New.mat --target "MyCube"
 ```
 
-**Play Mode Control:**
-```bash
-# Enter Play Mode
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp play
+### 8. Play Mode Control
 
-# Exit Play Mode
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp stop
+```bash
+umcp play                          # Enter Play Mode
+umcp stop                          # Exit Play Mode
+umcp state                         # Check current state
 ```
 
-**Editor State:**
-```bash
-uvx --from git+https://github.com/bigdra50/unity-mcp-client unity-mcp state
-```
-
-## Error Resolution Strategy
-
-### Classification
+## Error Resolution
 
 | Error Type | Identification | Priority |
 |-----------|----------------|----------|
-| Compilation (CS####) | CS error codes | Critical - fix immediately |
+| Compilation (CS####) | CS error codes | Critical |
 | Assembly Reference | Missing .asmdef refs | Critical |
-| Runtime Exception | NullReference, Missing | High - fix when requested |
+| Runtime Exception | NullReference, Missing | High |
 | Deprecation Warning | Obsolete API usage | Medium |
-| Performance Warning | GC allocation, etc. | Low |
 
-### Resolution Process
+**Process:**
+1. Parse error message (file/line/type)
+2. Classify (compilation vs runtime)
+3. Apply targeted fix
+4. Run `verify` to confirm
+5. Iterate until resolved
 
-1. **Understand**: Parse error message, identify file/line/type
-2. **Classify**: Determine if compilation or runtime
-3. **Identify Root Cause**: Check related code, dependencies
-4. **Apply Fix**: Targeted change to specific location
-5. **Verify**: Run `verify` command to confirm resolution
-6. **Iterate**: Continue until all errors resolved
-
-### Iteration Limits
-
-- Track fix attempts to avoid infinite loops
-- After 3 failed attempts, ask user for guidance
-- Consider alternative approaches when primary fix fails
-
-## State Response Format
-
-The `state` command returns JSON:
-```json
-{
-  "success": true,
-  "data": {
-    "isPlaying": false,
-    "isPaused": false,
-    "isCompiling": false,
-    "activeSceneName": "MainGame"
-  }
-}
-```
-
-## Best Practices
-
-### Proactive Verification
-- Run `verify` after making changes
-- Check logs before reporting task completion
-- Ensure clean compilation state
-
-### Error Communication
-- Report errors with file paths and line numbers (e.g., `Scripts/Player.cs:42`)
-- Explain error cause in user-friendly terms
-- Provide specific, actionable fixes
-
-### Testing Integration
-- Run tests only after successful compilation
-- Use `verify` before running tests
-- Check Enter Play Mode settings for Play Mode tests
+After 3 failed attempts, ask user for guidance.
 
 ## Troubleshooting
 
-### Connection Failures
-
-If CLI commands fail:
+**Connection Failures:**
 1. Verify Unity Editor is running
-2. Check MCP for Unity settings (Tools → MCP for Unity → Settings)
-3. Use `--retry` option for transient failures
-4. Manually specify `--port` if auto-detection fails
+2. Check Tools → MCP for Unity → Settings
+3. Use `--retry` for transient failures
+4. Try `--port 6400` if auto-detection fails
 
-### Timeout Issues
-
-If compilation takes too long:
-1. Increase timeout: `--timeout 120`
-2. Check Unity Editor for blocking dialogs
-3. Try manual refresh in Unity (Cmd+R)
-
-### Port Detection Issues (macOS)
-
-If auto-detection fails:
-- Manually specify: `--port 6400`
-- Check Unity EditorPrefs
-- Verify MCP for Unity plugin installation
+**Timeout Issues:**
+1. Increase: `--timeout 120 --connection-timeout 60`
+2. Check Unity for blocking dialogs
 
 ## Usage Triggers
 
 Use this skill when:
-- User reports Unity errors or issues
-- User requests error analysis or debugging
-- User asks to "check logs" or "analyze console"
-- After making script or asset modifications
+- User reports Unity errors or compilation problems
+- After script or asset modifications
+- User requests log analysis or debugging
 - Before running Unity tests
-- User mentions compilation problems
-- User describes runtime exceptions
-- User requests asset refresh or management
-- User asks about scene or GameObject operations
-- Setting up error-free Unity project state
+- Scene or GameObject operations needed
