@@ -5,6 +5,8 @@ allowed-tools:
   - Bash(git branch:*)
   - Bash(git log:*)
   - Bash(git commit:*)
+  - Bash(git reset)
+  - Bash(git add:*)
   - Read
 description: Create a git commit with gitmoji prefix and Japanese message for staged changes
 model: haiku
@@ -39,11 +41,25 @@ Follow these rules:
 
 3. **Analyze changes and create appropriate gitmoji with concise description**
 
+4. **Prohibited commands (NEVER use)**
+   - `git add .` - Use specific file paths instead
+   - `git add -A` - Use specific file paths instead
+   - `git reset --hard` - Irreversible operation
+
 Workflow:
 
 1. Based on above context, understand changes
 2. Analyze the nature of changes to select appropriate gitmoji
-3. Create concise and clear Japanese commit message
-4. Execute the commit
+3. **Check if multiple concerns exist in staged changes**
+   - If changes contain different concerns (e.g., feat + docs, fix + refactor):
+     - Inform the user about the mixed concerns
+     - Ask user to unstage some changes and commit separately
+     - Do NOT proceed with a mixed-concern commit
+   - Example of mixed concerns that should be split:
+     - New feature (feat) → 1st commit
+     - Documentation (docs) → 2nd commit
+     - Test addition (test) → 3rd commit
+4. Create concise and clear Japanese commit message
+5. Execute the commit
 
 If $ARGUMENTS is provided, use it as reference for the commit message.
